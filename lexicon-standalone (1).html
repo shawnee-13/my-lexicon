@@ -1,0 +1,1444 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>My Lexicon</title>
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="512x512" href="icon-512.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="My Lexicon">
+<meta name="theme-color" content="#6B2737">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500;0,8..60,600;1,8..60,400;1,8..60,500&family=Work+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<style>
+  :root{
+    --paper: #EAE6DA;
+    --paper-raised: #F3F0E6;
+    --ink: #26241F;
+    --ink-soft: #6B665A;
+    --burgundy: #6B2737;
+    --burgundy-soft: #8C4152;
+    --forest: #3F5744;
+    --gold: #A9824C;
+    --rule: #CFC7AE;
+    --danger: #8C3A2B;
+  }
+  *{ box-sizing: border-box; }
+  html, body{ margin:0; padding:0; }
+  body{
+    background: var(--paper);
+    color: var(--ink);
+    font-family: 'Work Sans', sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .serif{ font-family: 'Source Serif 4', serif; }
+  #app{
+    display: flex;
+    min-height: 100vh;
+  }
+  /* ---------- Sidebar ---------- */
+  #sidebar{
+    width: 260px;
+    flex-shrink: 0;
+    background: var(--paper-raised);
+    border-right: 1px solid var(--rule);
+    padding: 28px 20px 20px;
+    display: flex;
+    flex-direction: column;
+  }
+  #sidebar h1{
+    font-size: 26px;
+    font-weight: 500;
+    margin: 0 0 2px;
+    letter-spacing: -0.01em;
+  }
+  #sidebar .tagline{
+    font-size: 12.5px;
+    color: var(--ink-soft);
+    margin: 0 0 24px;
+    font-style: italic;
+  }
+  .nav-list{ list-style:none; margin:0; padding:0; flex: 1; overflow-y:auto; }
+  .nav-item{
+    display:flex;
+    align-items:center;
+    justify-content: space-between;
+    padding: 8px 4px;
+    border-radius: 3px;
+    cursor: pointer;
+    font-size: 14.5px;
+    color: var(--ink);
+    gap: 8px;
+  }
+  .nav-item:hover{ background: rgba(107,39,55,0.06); }
+  .nav-item.active{ background: rgba(107,39,55,0.11); color: var(--burgundy); font-weight: 500; }
+  .nav-item .count{ font-size: 12px; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+  .nav-item.active .count{ color: var(--burgundy-soft); }
+  .nav-label{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .nav-del{
+    opacity:0; border:none; background:none; cursor:pointer; color: var(--danger);
+    font-size: 13px; line-height:1; padding: 2px 4px;
+  }
+  .nav-item:hover .nav-del{ opacity: 0.65; }
+  .nav-del:hover{ opacity: 1 !important; }
+  .nav-section-gap{ height: 14px; }
+  .nav-divider{ border-top: 1px solid var(--rule); margin: 12px 0; }
+  #newBookRow{ margin-top: 4px; }
+  #newBookBtn{
+    width:100%; text-align:left; background:none; border:none; cursor:pointer;
+    color: var(--ink-soft); font-size: 13.5px; padding: 8px 4px; font-family: inherit;
+  }
+  #newBookBtn:hover{ color: var(--burgundy); }
+
+  /* ---------- Main ---------- */
+  #main{ flex:1; padding: 32px 44px 60px; max-width: 780px; }
+  #main-header{
+    display:flex; align-items:baseline; justify-content: space-between; gap: 20px;
+    margin-bottom: 6px; flex-wrap: wrap;
+  }
+  #main-header h2{ font-size: 30px; font-weight: 500; margin: 0; }
+  #wordCount{ font-size: 13px; color: var(--ink-soft); margin: 0 0 18px; }
+  #controls{
+    display:flex; align-items:center; gap: 14px; margin-bottom: 6px; flex-wrap: wrap;
+  }
+  #sortSelect{
+    font-size: 13.5px; padding: 7px 11px; border:1px solid var(--rule);
+    border-radius: 4px; background: var(--paper-raised); color: var(--ink); font-family: inherit;
+    cursor: pointer;
+  }
+  #searchInput{
+    flex:1; min-width: 140px; font-size: 13.5px; padding: 7px 11px; border:1px solid var(--rule);
+    border-radius: 4px; background: var(--paper-raised); color: var(--ink); font-family: inherit;
+  }
+  #addWordBtn{
+    background: var(--burgundy); color: #fff; border:none; border-radius: 4px;
+    padding: 8px 16px; font-size: 13.5px; cursor:pointer; font-family: inherit; font-weight:500;
+    white-space: nowrap;
+  }
+  #addWordBtn:hover{ background: var(--burgundy-soft); }
+  hr.hairline{ border:none; border-top: 1px solid var(--rule); margin: 18px 0 8px; }
+
+  /* ---------- Entry list ---------- */
+  .group-header{
+    font-size: 13px; color: var(--gold); font-weight: 600; margin: 22px 0 8px;
+    text-transform: none;
+  }
+  .group-header.letter{ font-size: 20px; font-family: 'Source Serif 4', serif; color: var(--burgundy); font-weight: 600; }
+  .week-header{ font-size: 12px; color: var(--ink-soft); margin: 14px 0 6px; font-style: italic; }
+
+  .entry{
+    border-bottom: 1px solid var(--rule);
+    padding: 14px 0;
+    cursor: pointer;
+  }
+  .entry:hover .entry-word{ color: var(--burgundy); }
+  .entry-top{ display:flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+  .entry-word{ font-size: 19px; font-weight: 500; }
+  .entry-phon{ color: var(--ink-soft); font-style: italic; font-size: 14px; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+  .entry-type{ color: var(--forest); font-style: italic; font-size: 13px; }
+  .entry-date{ margin-left: auto; font-size: 12px; color: var(--ink-soft); white-space: nowrap; }
+  .entry-book-tag{
+    font-size: 11px; color: var(--burgundy-soft); border: 1px solid var(--burgundy-soft);
+    border-radius: 3px; padding: 1px 6px; margin-left: 4px;
+  }
+  .entry-def{ font-size: 14.5px; margin: 5px 0 0; line-height: 1.5; }
+  .entry-examples{ margin: 6px 0 0; padding: 0; list-style:none; }
+  .entry-examples li{
+    font-size: 13.5px; font-style: italic; color: var(--ink-soft);
+    padding-left: 14px; position: relative; line-height: 1.5;
+  }
+  .entry-examples li::before{ content: "—"; position:absolute; left:0; }
+
+  .entry-detail{ display:none; margin-top: 10px; }
+  .entry.expanded .entry-detail{ display:block; }
+  .entry-actions{ margin-top: 10px; display:flex; gap: 10px; }
+  .entry-actions button{
+    font-size: 12.5px; border:none; background:none; cursor:pointer; color: var(--ink-soft);
+    padding: 3px 0; font-family: inherit; text-decoration: underline;
+  }
+  .entry-actions button.danger{ color: var(--danger); }
+  .entry-actions button:hover{ color: var(--ink); }
+
+  .empty-state{
+    padding: 40px 0; color: var(--ink-soft); font-size: 14.5px; max-width: 420px; line-height: 1.6;
+  }
+  .empty-state .serif{ font-size: 18px; color: var(--ink); display:block; margin-bottom: 6px; }
+
+  /* ---------- Modal ---------- */
+  body.modal-open{ overflow: hidden; }
+  #overlay{
+    display:none; position: fixed; inset:0; background: rgba(38,36,31,0.42);
+    align-items:flex-start; justify-content:center; z-index: 50; padding: 20px; padding-top: 6vh;
+  }
+  #overlay.open{ display:flex; }
+  #exportOverlay{
+    display:none; position: fixed; inset:0; background: rgba(38,36,31,0.42);
+    align-items:flex-start; justify-content:center; z-index: 50; padding: 20px; padding-top: 6vh;
+  }
+  #exportOverlay.open{ display:flex; }
+  #bookOverlay{
+    display:none; position: fixed; inset:0; background: rgba(38,36,31,0.42);
+    align-items:flex-start; justify-content:center; z-index: 50; padding: 20px; padding-top: 6vh;
+  }
+  #bookOverlay.open{ display:flex; }
+  #importOverlay{
+    display:none; position: fixed; inset:0; background: rgba(38,36,31,0.42);
+    align-items:flex-start; justify-content:center; z-index: 50; padding: 20px; padding-top: 6vh;
+  }
+  #importOverlay.open{ display:flex; }
+  #cloudOverlay{
+    display:none; position: fixed; inset:0; background: rgba(38,36,31,0.42);
+    align-items:flex-start; justify-content:center; z-index: 50; padding: 20px; padding-top: 6vh;
+  }
+  #cloudOverlay.open{ display:flex; }
+  #cloudModalBody .field textarea{ min-height: 90px; font-family: monospace; font-size: 12px; }
+  #cloudModalBody p.hint{ font-size: 12.5px; color: var(--ink-soft); line-height:1.5; margin: 0 0 14px; }
+  #cloudModalBody .cloud-row-actions{ display:flex; gap:10px; margin-top: 4px; }
+  .nav-edit{
+    opacity:0; border:none; background:none; cursor:pointer; color: var(--ink-soft);
+    font-size: 12px; line-height:1; padding: 2px 4px;
+  }
+  .nav-item:hover .nav-edit{ opacity: 0.65; }
+  .nav-edit:hover{ opacity: 1 !important; color: var(--burgundy); }
+  #modal{
+    background: var(--paper-raised); border-radius: 6px; width: 100%; max-width: 480px;
+    padding: 26px 28px; max-height: 88vh; overflow-y:auto;
+    box-shadow: 0 12px 40px rgba(38,36,31,0.25);
+  }
+  #modal h3{ margin: 0 0 18px; font-size: 20px; font-weight: 500; }
+  .field{ margin-bottom: 14px; }
+  .field label{ display:block; font-size: 12.5px; color: var(--ink-soft); margin-bottom: 4px; }
+  .field input, .field select, .field textarea{
+    width: 100%; font-size: 14px; padding: 8px 10px; border: 1px solid var(--rule);
+    border-radius: 4px; background: var(--paper); color: var(--ink); font-family: inherit;
+    resize: vertical;
+  }
+  .field textarea{ min-height: 56px; }
+  .row2{ display:flex; gap: 12px; }
+  .row2 .field{ flex:1; }
+  #dupWarning{
+    display:none; background: rgba(169,130,76,0.15); border: 1px solid var(--gold);
+    border-radius: 4px; padding: 10px 12px; font-size: 13px; margin-bottom: 14px; line-height:1.5;
+  }
+  #dupWarning button{
+    display:block; margin-top: 6px; background:none; border:none; color: var(--burgundy);
+    text-decoration: underline; cursor:pointer; font-size: 13px; padding:0; font-family: inherit;
+  }
+  #modal .modal-actions{ display:flex; justify-content:flex-end; gap: 10px; margin-top: 18px; }
+  #modal .btn-secondary{
+    background:none; border: 1px solid var(--rule); color: var(--ink-soft); padding: 8px 16px;
+    border-radius: 4px; cursor:pointer; font-family: inherit; font-size: 13.5px;
+  }
+  #modal .btn-primary{
+    background: var(--burgundy); border:none; color:#fff; padding: 8px 16px;
+    border-radius: 4px; cursor:pointer; font-family: inherit; font-size: 13.5px; font-weight:500;
+  }
+  #modal .btn-primary:hover{ background: var(--burgundy-soft); }
+
+  .flash{
+    position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+    background: var(--ink); color: var(--paper); padding: 10px 18px; border-radius: 4px;
+    font-size: 13.5px; opacity:0; transition: opacity 0.25s; pointer-events:none; z-index: 60;
+  }
+  .flash.show{ opacity: 0.95; }
+
+  @keyframes highlightPulse{
+    0%{ background: rgba(169,130,76,0.35); }
+    100%{ background: transparent; }
+  }
+  .highlight{ animation: highlightPulse 1.8s ease-out; }
+
+  .save-status{ font-size: 11.5px; color: var(--ink-soft); margin: -4px 0 18px; }
+  .save-status.saving{ color: var(--gold); }
+  .save-status.error{ color: var(--danger); }
+
+  .sidebar-tools{ margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--rule); }
+  #settingsToggleBtn{
+    width:100%; text-align:left; background:none; border:none; cursor:pointer;
+    color: var(--ink-soft); font-size: 13.5px; padding: 7px 4px; font-family: inherit;
+    display:flex; align-items:center; justify-content:space-between;
+  }
+  #settingsToggleBtn:hover{ color: var(--burgundy); }
+  #settingsArrow{ font-size: 11px; transition: transform 0.2s; display:inline-block; }
+  #settingsArrow.open{ transform: rotate(180deg); }
+  #settingsPanel{ display:none; flex-direction:column; gap:2px; padding-top: 4px; }
+  #settingsPanel.open{ display:flex; }
+  #booksToggleBtn{
+    width:100%; text-align:left; background:none; border:none; cursor:pointer;
+    color: var(--ink-soft); font-size: 13.5px; padding: 7px 4px; font-family: inherit;
+    display:flex; align-items:center; justify-content:space-between;
+  }
+  #booksToggleBtn:hover{ color: var(--burgundy); }
+  #booksArrow{ font-size: 11px; transition: transform 0.2s; display:inline-block; }
+  #booksArrow.open{ transform: rotate(180deg); }
+  #booksPanel{ display:none; padding-top: 4px; }
+  #booksPanel.open{ display:block; }
+  .tool-btn{ text-align:left; background:none; border:none; cursor:pointer; color: var(--ink-soft); font-size: 13.5px; padding: 7px 4px; font-family: inherit; border-radius:3px; }
+  .tool-btn:hover{ color: var(--burgundy); background: rgba(107,39,55,0.06); }
+
+  /* Progress view */
+  .stat-tiles{ display:flex; gap: 14px; flex-wrap: wrap; margin: 10px 0 30px; }
+  .stat-tile{ background: var(--paper-raised); border: 1px solid var(--rule); border-radius: 5px; padding: 14px 20px; min-width: 100px; }
+  .stat-tile .num{ font-family:'Source Serif 4', serif; font-size: 28px; color: var(--burgundy); display:block; line-height:1; }
+  .stat-tile .lbl{ font-size: 12px; color: var(--ink-soft); margin-top: 4px; display:block; }
+  .stat-subhead{ font-size: 13px; font-weight: 600; color: var(--forest); margin: 26px 0 12px; }
+  .bar-row{ display:flex; align-items:center; gap: 10px; margin-bottom: 8px; }
+  .bar-row .bar-label{ width: 100px; font-size: 12.5px; color: var(--ink-soft); flex-shrink:0; }
+  .bar-row .bar-track{ flex:1; background: rgba(207,199,174,0.45); border-radius: 3px; height: 14px; overflow:hidden; }
+  .bar-row .bar-fill{ background: var(--forest); height: 100%; border-radius: 3px; }
+  .bar-row .bar-count{ font-size: 12px; color: var(--ink-soft); width: 26px; text-align:right; flex-shrink:0; }
+
+  /* Print / export */
+  #printArea{ display:none; }
+  @media print{
+    #app, #overlay, #bookOverlay, #exportOverlay, #importOverlay, #cloudOverlay, .flash{ display:none !important; }
+    #printArea{ display:block; }
+  }
+  .print-title{ font-family:'Source Serif 4', serif; font-size: 25px; text-align:center; margin-bottom: 2px; letter-spacing: 0.02em; }
+  .print-subtitle{ text-align:center; font-size: 12px; color: #555; font-style:italic; margin-bottom: 24px; }
+  .print-columns{ column-count: 2; column-gap: 30px; }
+  .print-entry{ break-inside: avoid; margin-bottom: 13px; font-family:'Source Serif 4', serif; font-size: 12.5px; line-height:1.45; }
+  .print-entry .pw{ font-weight:600; font-size: 14px; }
+  .print-entry .pp{ font-style: italic; color:#444; margin-left:6px; font-size:12px; font-family: -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; }
+  .print-entry .pt{ font-style: italic; color:#444; margin-left:6px; font-size:11.5px; }
+  .print-entry .pd{ display:block; margin-top:2px; }
+  .print-entry .pe{ display:block; font-style:italic; color:#555; margin-top:2px; padding-left:10px; font-size:11.5px; }
+  .print-group{ font-family:'Source Serif 4', serif; font-weight:700; font-size: 15px; color:#6B2737; break-after:avoid; margin: 12px 0 6px; }
+
+  @media (max-width: 720px){
+    #app{ flex-direction: column; }
+    #sidebar{ width: 100%; border-right:none; border-bottom: 1px solid var(--rule); }
+    #main{ padding: 24px 20px 60px; }
+  }
+</style>
+</head>
+<body>
+
+<div id="app">
+  <div id="sidebar">
+    <h1 class="serif">My Lexicon</h1>
+    <p class="tagline">a running record of words you've met</p>
+    <p class="save-status" id="saveStatus">Loading…</p>
+    <p class="save-status" id="cloudStatus">☁ Not connected</p>
+    <ul class="nav-list" id="navTopList"></ul>
+    <div class="nav-divider"></div>
+    <div class="sidebar-tools" style="margin-top:0; padding-top:0; border-top:none;">
+      <button id="booksToggleBtn">📚 Bookshelf <span id="booksArrow">▾</span></button>
+      <div id="booksPanel">
+        <div id="newBookRow">
+          <button id="newBookBtn">+ New book</button>
+        </div>
+        <ul class="nav-list" id="navBooksList"></ul>
+      </div>
+    </div>
+    <div class="sidebar-tools">
+      <button id="settingsToggleBtn">⚙ Settings <span id="settingsArrow">▾</span></button>
+      <div id="settingsPanel">
+        <button class="tool-btn" id="openCloudBtn">Cloud sync…</button>
+        <button class="tool-btn" id="openImportBtn">Import words…</button>
+        <button class="tool-btn" id="openExportBtn">Export a word list…</button>
+        <button class="tool-btn" id="downloadBackupBtn">Download backup (.json)</button>
+        <button class="tool-btn" id="restoreBackupBtn">Restore from backup…</button>
+        <input type="file" id="restoreFileInput" accept="application/json" style="display:none">
+      </div>
+    </div>
+  </div>
+
+  <div id="main">
+    <div id="main-header">
+      <h2 class="serif" id="sectionTitle">All words</h2>
+    </div>
+    <p id="sectionMeta" style="font-size:13px; color: var(--ink-soft); font-style:italic; margin: -2px 0 10px; display:none;"></p>
+    <p id="wordCount"></p>
+    <div id="controls">
+      <select id="sortSelect">
+        <option value="alpha">A–Z</option>
+        <option value="alpha-rev">Z–A</option>
+        <option value="date">Newest first</option>
+        <option value="date-rev">Oldest first</option>
+      </select>
+      <input id="searchInput" type="text" placeholder="Search by word…">
+      <button id="addWordBtn">+ Add word</button>
+    </div>
+    <hr class="hairline">
+    <div id="listArea"></div>
+  </div>
+</div>
+
+<div id="overlay">
+  <div id="modal">
+    <h3 id="modalTitle">Add a word</h3>
+    <div id="dupWarning"></div>
+    <div class="field">
+      <label for="fWord">Word</label>
+      <input id="fWord" type="text" placeholder="e.g. abscond">
+    </div>
+    <div class="row2">
+      <div class="field">
+        <label for="fType">Type</label>
+        <select id="fType">
+          <option value="noun">noun</option>
+          <option value="verb">verb</option>
+          <option value="adjective">adjective</option>
+          <option value="adverb">adverb</option>
+          <option value="preposition">preposition</option>
+          <option value="conjunction">conjunction</option>
+          <option value="pronoun">pronoun</option>
+          <option value="interjection">interjection</option>
+          <option value="phrase">phrase / idiom</option>
+          <option value="other">other</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="fPhon">Pronunciation</label>
+        <input id="fPhon" type="text" placeholder="/əbˈskɒnd/" style="font-family: -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif;">
+      </div>
+    </div>
+    <div class="field">
+      <label for="fDef">Definition</label>
+      <textarea id="fDef" placeholder="What does it mean?"></textarea>
+    </div>
+    <div class="field">
+      <label for="fExamples">Examples (one per line)</label>
+      <textarea id="fExamples" placeholder="He absconded with the stolen jewels."></textarea>
+    </div>
+    <div class="field">
+      <label for="fBook">Book / section</label>
+      <select id="fBook"></select>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-secondary" id="cancelBtn">Cancel</button>
+      <button class="btn-primary" id="saveBtn">Save word</button>
+    </div>
+  </div>
+</div>
+
+<div id="exportOverlay">
+  <div id="exportModal" style="max-height: 84vh; overflow-y: auto; background: var(--paper-raised); border-radius: 6px; width: 100%; max-width: 420px; padding: 26px 28px; box-shadow: 0 12px 40px rgba(38,36,31,0.25);">
+    <h3 style="margin:0 0 18px; font-size:20px; font-weight:500;">Export word list</h3>
+    <div class="field">
+      <label for="exScope">Which words?</label>
+      <select id="exScope"></select>
+    </div>
+    <div class="field">
+      <label for="exOrder">List order</label>
+      <select id="exOrder">
+        <option value="alpha">Alphabetical (A–Z)</option>
+        <option value="date">Chronological (oldest first)</option>
+      </select>
+    </div>
+    <p style="font-size:12.5px; color: var(--ink-soft); margin: 4px 0 0; line-height:1.5;">
+      Opens your browser's print dialog, styled as a dictionary page — choose "Save as PDF" as the destination.
+    </p>
+    <div class="modal-actions">
+      <button class="btn-secondary" id="exportCancelBtn">Cancel</button>
+      <button class="btn-primary" id="exportGoBtn">Generate PDF</button>
+    </div>
+  </div>
+</div>
+
+<div id="bookOverlay">
+  <div id="bookModal" style="max-height: 84vh; overflow-y: auto; background: var(--paper-raised); border-radius: 6px; width: 100%; max-width: 420px; padding: 26px 28px; box-shadow: 0 12px 40px rgba(38,36,31,0.25);">
+    <h3 id="bookModalTitle" style="margin:0 0 18px; font-size:20px; font-weight:500;">New book</h3>
+    <div class="field">
+      <label for="bkName">Title</label>
+      <input id="bkName" type="text" placeholder="e.g. Harry Potter and the Philosopher's Stone" maxlength="80">
+    </div>
+    <div class="row2">
+      <div class="field">
+        <label for="bkAuthor">Author</label>
+        <input id="bkAuthor" type="text" placeholder="e.g. J.K. Rowling" maxlength="60">
+      </div>
+      <div class="field">
+        <label for="bkYear">Year published</label>
+        <input id="bkYear" type="text" placeholder="e.g. 1997" maxlength="10">
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-secondary" id="bookCancelBtn">Cancel</button>
+      <button class="btn-primary" id="bookSaveBtn">Save book</button>
+    </div>
+  </div>
+</div>
+
+<div id="importOverlay">
+  <div id="importModal" style="max-height: 84vh; overflow-y: auto; background: var(--paper-raised); border-radius: 6px; width: 100%; max-width: 460px; padding: 26px 28px; box-shadow: 0 12px 40px rgba(38,36,31,0.25);">
+    <h3 style="margin:0 0 14px; font-size:20px; font-weight:500;">Import words</h3>
+    <p style="font-size:13px; color: var(--ink-soft); line-height:1.6; margin: 0 0 16px;">
+      Import a CSV with columns <em>word, type, phonetics, definition, examples, book, author, year</em>
+      (only word and definition are required). Separate multiple examples in one cell with a <code>|</code>.
+      Any book named in the file that doesn't exist yet is created automatically. Words you've already logged are skipped, so it's safe to re-import the same file.
+    </p>
+    <div class="modal-actions" style="justify-content:flex-start; flex-wrap:wrap;">
+      <button class="btn-secondary" id="downloadTemplateBtn">Download CSV template</button>
+      <button class="btn-primary" id="chooseImportFileBtn">Choose file…</button>
+    </div>
+    <input type="file" id="importFileInput" accept=".csv,text/csv" style="display:none">
+    <div class="modal-actions">
+      <button class="btn-secondary" id="importCancelBtn">Close</button>
+    </div>
+  </div>
+</div>
+
+<div id="cloudOverlay">
+  <div id="cloudModal" style="max-height: 84vh; overflow-y: auto; background: var(--paper-raised); border-radius: 6px; width: 100%; max-width: 440px; padding: 26px 28px; box-shadow: 0 12px 40px rgba(38,36,31,0.25);">
+    <h3 style="margin:0 0 14px; font-size:20px; font-weight:500;">Cloud sync</h3>
+    <div id="cloudModalBody"></div>
+    <div class="modal-actions">
+      <button class="btn-secondary" id="cloudCloseBtn">Close</button>
+    </div>
+  </div>
+</div>
+
+<div id="printArea"></div>
+
+<div class="flash" id="flash"></div>
+
+<script>
+(function(){
+  var RANDOM_ID = 'random';
+  var TYPE_ABBR = { noun:'n.', verb:'v.', adjective:'adj.', adverb:'adv.', preposition:'prep.',
+    conjunction:'conj.', pronoun:'pron.', interjection:'interj.', phrase:'phr.', other:'—' };
+
+  var state = { books: [{id: RANDOM_ID, name: 'Random finds', createdAt: Date.now()}], words: [] };
+  var view = 'all'; // 'all' | RANDOM_ID | book id
+  var sortMode = 'alpha';
+  var searchQuery = '';
+  var editingWordId = null;
+  var pendingScrollTo = null;
+  var loaded = false;
+  var fbApp = null, fbAuth = null, fbDb = null, cloudUser = null;
+  var unsubscribeSnapshot = null;
+  var applyingRemote = false;
+
+  function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,8); }
+  function escapeHtml(s){
+    return String(s).replace(/[&<>"']/g, function(c){
+      return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+    });
+  }
+  function showFlash(msg){
+    var f = document.getElementById('flash');
+    f.textContent = msg;
+    f.classList.add('show');
+    setTimeout(function(){ f.classList.remove('show'); }, 1800);
+  }
+
+  function setSaveStatus(text, cls){
+    var el = document.getElementById('saveStatus');
+    el.textContent = text;
+    el.className = 'save-status' + (cls ? ' ' + cls : '');
+  }
+
+  async function loadState(){
+    setSaveStatus('Loading your words…');
+    try{
+      var raw = localStorage.getItem('lexicon-data');
+      if(raw){
+        var parsed = JSON.parse(raw);
+        if(parsed && parsed.books && parsed.words){ state = parsed; }
+      }
+      setSaveStatus('All words loaded.');
+    }catch(e){
+      setSaveStatus('Starting fresh — no saved words found yet.');
+    }
+    loaded = true;
+    renderSidebar();
+    renderMain();
+  }
+
+  async function saveState(retryCount){
+    retryCount = retryCount || 0;
+    setSaveStatus('Saving…', 'saving');
+    try{
+      localStorage.setItem('lexicon-data', JSON.stringify(state));
+      setSaveStatus('All changes saved.');
+    }catch(e){
+      console.error('Storage save failed', e);
+      if(retryCount < 2){
+        setTimeout(function(){ saveState(retryCount + 1); }, 400);
+      } else {
+        setSaveStatus('⚠ Save failed — this device may be out of storage space. Use "Download backup" now.', 'error');
+        showFlash('Could not save. Please download a backup.');
+      }
+    }
+    if(!applyingRemote) pushToCloud();
+  }
+
+  function bookById(id){
+    for(var i=0;i<state.books.length;i++){ if(state.books[i].id===id) return state.books[i]; }
+    return null;
+  }
+
+  function formatDate(ts){
+    var d = new Date(ts);
+    return d.toLocaleDateString(undefined, { month:'short', day:'numeric', year:'numeric' });
+  }
+  function formatDateShort(ts){
+    var d = new Date(ts);
+    return d.toLocaleDateString(undefined, { weekday:'short', month:'short', day:'numeric' });
+  }
+  function weekStartLabel(ts){
+    var d = new Date(ts);
+    var day = d.getDay(); // 0 Sun - 6 Sat
+    var diff = (day === 0 ? -6 : 1 - day); // move to Monday
+    var monday = new Date(d);
+    monday.setDate(d.getDate() + diff);
+    return 'Week of ' + monday.toLocaleDateString(undefined, { month:'short', day:'numeric' });
+  }
+
+  // ---------- Sidebar ----------
+  function renderSidebar(){
+    var topNav = document.getElementById('navTopList');
+    var booksNav = document.getElementById('navBooksList');
+    topNav.innerHTML = '';
+    booksNav.innerHTML = '';
+
+    function countFor(bookId){
+      if(bookId === 'all') return state.words.length;
+      return state.words.filter(function(w){ return w.bookId === bookId; }).length;
+    }
+
+    function makeItem(id, label, deletable){
+      var li = document.createElement('li');
+      li.className = 'nav-item' + (view === id ? ' active' : '');
+      var countHtml = id === 'progress' ? '' : '<span class="count">'+countFor(id === 'all' ? 'all' : id)+'</span>';
+      li.innerHTML = '<span class="nav-label">'+escapeHtml(label)+'</span>' + countHtml;
+      li.addEventListener('click', function(){ view = id; searchQuery=''; document.getElementById('searchInput').value=''; renderSidebar(); renderMain(); });
+      if(deletable){
+        var edit = document.createElement('button');
+        edit.className = 'nav-edit';
+        edit.textContent = '✎';
+        edit.title = 'Edit book details';
+        edit.addEventListener('click', function(ev){
+          ev.stopPropagation();
+          openBookModal(bookById(id));
+        });
+        li.appendChild(edit);
+        var del = document.createElement('button');
+        del.className = 'nav-del';
+        del.textContent = '✕';
+        del.title = 'Delete book';
+        del.addEventListener('click', function(ev){
+          ev.stopPropagation();
+          deleteBook(id);
+        });
+        li.appendChild(del);
+      }
+      return li;
+    }
+
+    topNav.appendChild(makeItem('all', 'All words', false));
+    topNav.appendChild(makeItem(RANDOM_ID, 'Random finds', false));
+    topNav.appendChild(makeItem('progress', 'Progress', false));
+
+    var realBooks = state.books.filter(function(b){ return b.id !== RANDOM_ID; });
+    realBooks.forEach(function(b){
+      booksNav.appendChild(makeItem(b.id, b.name, true));
+    });
+
+    var isBookActive = realBooks.some(function(b){ return b.id === view; });
+    if(isBookActive){
+      document.getElementById('booksPanel').classList.add('open');
+      document.getElementById('booksArrow').classList.add('open');
+    }
+
+    // populate book select in modal
+    var sel = document.getElementById('fBook');
+    sel.innerHTML = '';
+    var ordered = [state.books.find(function(b){return b.id===RANDOM_ID;})].concat(
+      state.books.filter(function(b){ return b.id !== RANDOM_ID; })
+    );
+    ordered.forEach(function(b){
+      var opt = document.createElement('option');
+      opt.value = b.id; opt.textContent = b.name;
+      sel.appendChild(opt);
+    });
+  }
+
+  // ---------- Book modal (add / edit) ----------
+  var editingBookId = null;
+  document.getElementById('newBookBtn').addEventListener('click', function(){ openBookModal(null); });
+  document.getElementById('settingsToggleBtn').addEventListener('click', function(){
+    document.getElementById('settingsPanel').classList.toggle('open');
+    document.getElementById('settingsArrow').classList.toggle('open');
+  });
+  document.getElementById('booksToggleBtn').addEventListener('click', function(){
+    document.getElementById('booksPanel').classList.toggle('open');
+    document.getElementById('booksArrow').classList.toggle('open');
+  });
+  function openBookModal(existingBook){
+    editingBookId = existingBook ? existingBook.id : null;
+    document.getElementById('bookModalTitle').textContent = existingBook ? 'Edit book' : 'New book';
+    document.getElementById('bkName').value = existingBook ? existingBook.name : '';
+    document.getElementById('bkAuthor').value = existingBook ? (existingBook.author || '') : '';
+    document.getElementById('bkYear').value = existingBook ? (existingBook.year || '') : '';
+    document.getElementById('bookOverlay').classList.add('open');
+    setTimeout(function(){ document.getElementById('bkName').focus(); }, 50);
+  }
+  function closeBookModal(){ document.getElementById('bookOverlay').classList.remove('open'); editingBookId = null; }
+  document.getElementById('bookCancelBtn').addEventListener('click', closeBookModal);
+  document.getElementById('bookOverlay').addEventListener('click', function(e){
+    if(e.target.id === 'bookOverlay') closeBookModal();
+  });
+  document.getElementById('bookSaveBtn').addEventListener('click', function(){
+    var name = document.getElementById('bkName').value.trim();
+    if(!name){ showFlash('Give the book a title first.'); return; }
+    var author = document.getElementById('bkAuthor').value.trim();
+    var year = document.getElementById('bkYear').value.trim();
+    if(editingBookId){
+      var b = bookById(editingBookId);
+      b.name = name; b.author = author; b.year = year;
+    } else {
+      var newB = { id: uid(), name: name, author: author, year: year, createdAt: Date.now() };
+      state.books.push(newB);
+      view = newB.id;
+    }
+    saveState();
+    closeBookModal();
+    renderSidebar();
+    renderMain();
+  });
+  function deleteBook(id){
+    var b = bookById(id);
+    if(!b) return;
+    var count = state.words.filter(function(w){ return w.bookId === id; }).length;
+    var msg = count > 0
+      ? 'Delete "'+b.name+'"? Its '+count+' word'+(count===1?'':'s')+' will move to Random finds.'
+      : 'Delete "'+b.name+'"?';
+    if(!confirm(msg)) return;
+    state.words.forEach(function(w){ if(w.bookId === id) w.bookId = RANDOM_ID; });
+    state.books = state.books.filter(function(b2){ return b2.id !== id; });
+    if(view === id) view = 'all';
+    saveState();
+    renderSidebar();
+    renderMain();
+  }
+
+  // ---------- Sort / search controls ----------
+  document.getElementById('sortSelect').addEventListener('change', function(e){
+    sortMode = e.target.value;
+    renderMain();
+  });
+  document.getElementById('searchInput').addEventListener('input', function(e){
+    searchQuery = e.target.value.trim().toLowerCase();
+    renderMain();
+  });
+
+  // ---------- Main list ----------
+  function currentWords(){
+    var list;
+    if(view === 'all') list = state.words.slice();
+    else list = state.words.filter(function(w){ return w.bookId === view; });
+    if(searchQuery){
+      list = list.filter(function(w){
+        return w.word.toLowerCase().indexOf(searchQuery) !== -1;
+      });
+    }
+    return list;
+  }
+
+  function renderMain(){
+    if(view === 'progress'){
+      document.getElementById('sectionTitle').textContent = 'Progress';
+      document.getElementById('sectionMeta').style.display = 'none';
+      document.getElementById('wordCount').textContent = '';
+      document.getElementById('controls').style.display = 'none';
+      renderProgress();
+      return;
+    }
+    document.getElementById('controls').style.display = 'flex';
+    var currentBook = bookById(view);
+    var title = view === 'all' ? 'All words' : (currentBook ? currentBook.name : 'All words');
+    document.getElementById('sectionTitle').textContent = title;
+    var metaEl = document.getElementById('sectionMeta');
+    if(currentBook && currentBook.id !== RANDOM_ID && (currentBook.author || currentBook.year)){
+      var metaParts = [];
+      if(currentBook.author) metaParts.push('by ' + currentBook.author);
+      if(currentBook.year) metaParts.push(currentBook.year);
+      metaEl.textContent = metaParts.join(' · ');
+      metaEl.style.display = 'block';
+    } else {
+      metaEl.textContent = '';
+      metaEl.style.display = 'none';
+    }
+    var list = currentWords();
+    document.getElementById('wordCount').textContent =
+      list.length + ' word' + (list.length===1?'':'s') + (searchQuery ? ' matching "'+searchQuery+'"' : '');
+
+    var area = document.getElementById('listArea');
+    area.innerHTML = '';
+
+    if(list.length === 0){
+      var empty = document.createElement('div');
+      empty.className = 'empty-state';
+      empty.innerHTML = '<span class="serif">Nothing here yet.</span>' +
+        (searchQuery ? 'No words match your search.' : 'Add the next word you look up — it will land right here.');
+      area.appendChild(empty);
+      return;
+    }
+
+    if(sortMode === 'alpha' || sortMode === 'alpha-rev'){
+      list.sort(function(a,b){
+        return sortMode === 'alpha' ? a.word.localeCompare(b.word) : b.word.localeCompare(a.word);
+      });
+      var currentLetter = null;
+      list.forEach(function(w){
+        var letter = w.word.charAt(0).toUpperCase();
+        if(letter !== currentLetter){
+          currentLetter = letter;
+          var h = document.createElement('div');
+          h.className = 'group-header letter';
+          h.textContent = letter;
+          area.appendChild(h);
+        }
+        area.appendChild(renderEntry(w));
+      });
+    } else {
+      list.sort(function(a,b){
+        return sortMode === 'date' ? b.createdAt - a.createdAt : a.createdAt - b.createdAt;
+      });
+      var currentMonth = null, currentWeek = null;
+      list.forEach(function(w){
+        var d = new Date(w.createdAt);
+        var monthLabel = d.toLocaleDateString(undefined, { month:'long', year:'numeric' });
+        if(monthLabel !== currentMonth){
+          currentMonth = monthLabel; currentWeek = null;
+          var h = document.createElement('div');
+          h.className = 'group-header';
+          h.textContent = monthLabel;
+          area.appendChild(h);
+        }
+        var weekLabel = weekStartLabel(w.createdAt);
+        if(weekLabel !== currentWeek){
+          currentWeek = weekLabel;
+          var wh = document.createElement('div');
+          wh.className = 'week-header';
+          wh.textContent = weekLabel;
+          area.appendChild(wh);
+        }
+        area.appendChild(renderEntry(w));
+      });
+    }
+
+    if(pendingScrollTo){
+      var target = document.getElementById('entry-' + pendingScrollTo);
+      if(target){
+        target.scrollIntoView({behavior:'smooth', block:'center'});
+        target.classList.add('highlight');
+        setTimeout(function(){ target.classList.remove('highlight'); }, 1800);
+      }
+      pendingScrollTo = null;
+    }
+  }
+
+  function renderEntry(w){
+    var div = document.createElement('div');
+    div.className = 'entry';
+    div.id = 'entry-' + w.id;
+    var book = bookById(w.bookId);
+    var bookTag = (view === 'all' && book) ? '<span class="entry-book-tag">'+escapeHtml(book.name)+'</span>' : '';
+    var dateLabel = (sortMode === 'alpha' || sortMode === 'alpha-rev') ? formatDate(w.createdAt) : formatDateShort(w.createdAt);
+
+    var examplesHtml = '';
+    if(w.examples && w.examples.length){
+      examplesHtml = '<ul class="entry-examples">' + w.examples.map(function(ex){
+        return '<li>' + escapeHtml(ex) + '</li>';
+      }).join('') + '</ul>';
+    }
+
+    div.innerHTML =
+      '<div class="entry-top">' +
+        '<span class="entry-word serif">' + escapeHtml(w.word) + '</span>' +
+        (w.phonetics ? '<span class="entry-phon">' + escapeHtml(w.phonetics) + '</span>' : '') +
+        '<span class="entry-type">' + (TYPE_ABBR[w.type] || w.type) + '</span>' +
+        bookTag +
+        '<span class="entry-date">' + dateLabel + '</span>' +
+      '</div>' +
+      '<p class="entry-def">' + escapeHtml(w.definition) + '</p>' +
+      examplesHtml +
+      '<div class="entry-detail">' +
+        '<div class="entry-actions">' +
+          '<button class="edit-btn">Edit</button>' +
+          '<button class="danger delete-btn">Delete</button>' +
+        '</div>' +
+      '</div>';
+
+    div.addEventListener('click', function(ev){
+      if(ev.target.classList.contains('edit-btn') || ev.target.classList.contains('delete-btn')) return;
+      div.classList.toggle('expanded');
+    });
+    div.querySelector('.edit-btn').addEventListener('click', function(){ openModal(w); });
+    div.querySelector('.delete-btn').addEventListener('click', function(){
+      if(confirm('Delete "'+w.word+'"?')){
+        state.words = state.words.filter(function(x){ return x.id !== w.id; });
+        saveState();
+        renderSidebar();
+        renderMain();
+      }
+    });
+    return div;
+  }
+
+  function renderProgress(){
+    var area = document.getElementById('listArea');
+    area.innerHTML = '';
+    var now = new Date();
+    var startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    var day = now.getDay(); var diffToMonday = (day===0?-6:1-day);
+    var startOfWk = new Date(now.getFullYear(), now.getMonth(), now.getDate()+diffToMonday).getTime();
+    var startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
+    var startOfYear = new Date(now.getFullYear(), 0, 1).getTime();
+
+    function countSince(ts){ return state.words.filter(function(w){ return w.createdAt >= ts; }).length; }
+
+    var tiles = [
+      {label:'Today', num: countSince(startOfToday)},
+      {label:'This week', num: countSince(startOfWk)},
+      {label:'This month', num: countSince(startOfMonth)},
+      {label:'This year', num: countSince(startOfYear)},
+      {label:'All time', num: state.words.length}
+    ];
+    area.innerHTML = '<div class="stat-tiles">' + tiles.map(function(t){
+      return '<div class="stat-tile"><span class="num">'+t.num+'</span><span class="lbl">'+t.label+'</span></div>';
+    }).join('') + '</div>';
+
+    if(state.words.length === 0){
+      var empty = document.createElement('div');
+      empty.className = 'empty-state';
+      empty.innerHTML = '<span class="serif">No words logged yet.</span>Add a word and your progress will show up here.';
+      area.appendChild(empty);
+      return;
+    }
+
+    var byMonth = {};
+    state.words.forEach(function(w){
+      var d = new Date(w.createdAt);
+      var key = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');
+      byMonth[key] = (byMonth[key]||0) + 1;
+    });
+    var monthKeys = Object.keys(byMonth).sort().slice(-12);
+    var maxMonth = Math.max.apply(null, monthKeys.map(function(k){ return byMonth[k]; }));
+
+    var monthHead = document.createElement('div');
+    monthHead.className = 'stat-subhead';
+    monthHead.textContent = 'By month';
+    area.appendChild(monthHead);
+
+    monthKeys.forEach(function(k){
+      var parts = k.split('-');
+      var d = new Date(parseInt(parts[0]), parseInt(parts[1])-1, 1);
+      var label = d.toLocaleDateString(undefined, {month:'short', year:'numeric'});
+      var count = byMonth[k];
+      var pct = Math.max(6, Math.round((count / maxMonth) * 100));
+      var row = document.createElement('div');
+      row.className = 'bar-row';
+      row.innerHTML = '<span class="bar-label">'+label+'</span>' +
+        '<span class="bar-track"><span class="bar-fill" style="width:'+pct+'%"></span></span>' +
+        '<span class="bar-count">'+count+'</span>';
+      area.appendChild(row);
+    });
+
+    var bookHead = document.createElement('div');
+    bookHead.className = 'stat-subhead';
+    bookHead.textContent = 'By book';
+    area.appendChild(bookHead);
+
+    var byBook = {};
+    state.words.forEach(function(w){ byBook[w.bookId] = (byBook[w.bookId]||0)+1; });
+    var bookKeys = Object.keys(byBook).sort(function(a,b){ return byBook[b]-byBook[a]; });
+    var maxBook = Math.max.apply(null, bookKeys.map(function(k){ return byBook[k]; }));
+    bookKeys.forEach(function(k){
+      var b = bookById(k);
+      var label = b ? b.name : 'Random finds';
+      var count = byBook[k];
+      var pct = Math.max(6, Math.round((count / maxBook) * 100));
+      var row = document.createElement('div');
+      row.className = 'bar-row';
+      row.innerHTML = '<span class="bar-label">'+escapeHtml(label)+'</span>' +
+        '<span class="bar-track"><span class="bar-fill" style="width:'+pct+'%"></span></span>' +
+        '<span class="bar-count">'+count+'</span>';
+      area.appendChild(row);
+    });
+  }
+
+  // ---------- Modal ----------
+  var overlay = document.getElementById('overlay');
+  document.getElementById('addWordBtn').addEventListener('click', function(){ openModal(null); });
+  document.getElementById('cancelBtn').addEventListener('click', closeModal);
+  overlay.addEventListener('click', function(e){ if(e.target === overlay) closeModal(); });
+
+  function openModal(existing){
+    editingWordId = existing ? existing.id : null;
+    document.getElementById('modalTitle').textContent = existing ? 'Edit word' : 'Add a word';
+    document.getElementById('fWord').value = existing ? existing.word : '';
+    document.getElementById('fType').value = existing ? existing.type : 'noun';
+    document.getElementById('fPhon').value = existing ? existing.phonetics : '';
+    document.getElementById('fDef').value = existing ? existing.definition : '';
+    document.getElementById('fExamples').value = existing ? existing.examples.join('\n') : '';
+    var defaultBook = (view !== 'all' && bookById(view)) ? view : RANDOM_ID;
+    document.getElementById('fBook').value = existing ? existing.bookId : defaultBook;
+    document.getElementById('dupWarning').style.display = 'none';
+    overlay.classList.add('open');
+    setTimeout(function(){ document.getElementById('fWord').focus(); }, 50);
+  }
+  function closeModal(){ overlay.classList.remove('open'); editingWordId = null; }
+
+  function findDuplicate(text){
+    var norm = text.trim().toLowerCase();
+    if(!norm) return null;
+    for(var i=0;i<state.words.length;i++){
+      var w = state.words[i];
+      if(w.id === editingWordId) continue;
+      if(w.word.trim().toLowerCase() === norm) return w;
+    }
+    return null;
+  }
+
+  document.getElementById('fWord').addEventListener('input', function(){
+    var dup = findDuplicate(this.value);
+    var box = document.getElementById('dupWarning');
+    if(dup){
+      var book = bookById(dup.bookId);
+      box.innerHTML = 'You already logged <strong>"'+escapeHtml(dup.word)+'"</strong> in ' +
+        escapeHtml(book ? book.name : 'Random finds') + ' on ' + formatDate(dup.createdAt) + '.' +
+        '<button id="goToDupBtn">Go to that entry</button>';
+      box.style.display = 'block';
+      document.getElementById('goToDupBtn').addEventListener('click', function(){
+        closeModal();
+        view = dup.bookId;
+        sortMode = 'alpha';
+        document.getElementById('sortSelect').value = 'alpha';
+        pendingScrollTo = dup.id;
+        renderSidebar();
+        renderMain();
+      });
+    } else {
+      box.style.display = 'none';
+    }
+  });
+
+  document.getElementById('saveBtn').addEventListener('click', function(){
+    var word = document.getElementById('fWord').value.trim();
+    if(!word){ showFlash('Enter a word first.'); return; }
+    var def = document.getElementById('fDef').value.trim();
+    if(!def){ showFlash('Enter a definition first.'); return; }
+    var examplesRaw = document.getElementById('fExamples').value.split('\n').map(function(s){return s.trim();}).filter(Boolean);
+
+    if(editingWordId){
+      var w = state.words.find(function(x){ return x.id === editingWordId; });
+      w.word = word;
+      w.type = document.getElementById('fType').value;
+      w.phonetics = document.getElementById('fPhon').value.trim();
+      w.definition = def;
+      w.examples = examplesRaw;
+      w.bookId = document.getElementById('fBook').value;
+    } else {
+      state.words.push({
+        id: uid(),
+        word: word,
+        type: document.getElementById('fType').value,
+        phonetics: document.getElementById('fPhon').value.trim(),
+        definition: def,
+        examples: examplesRaw,
+        bookId: document.getElementById('fBook').value,
+        createdAt: Date.now()
+      });
+    }
+    saveState();
+    closeModal();
+    renderSidebar();
+    renderMain();
+    showFlash('Saved.');
+  });
+
+  // ---------- Export to PDF ----------
+  function buildPrintHtml(words, scope, order){
+    var title = scope === 'all' ? 'My Lexicon' : (bookById(scope) ? bookById(scope).name : 'My Lexicon');
+    var sorted = words.slice();
+    if(order === 'alpha') sorted.sort(function(a,b){ return a.word.localeCompare(b.word); });
+    else sorted.sort(function(a,b){ return a.createdAt - b.createdAt; });
+
+    var html = '<div class="print-title">' + escapeHtml(title) + '</div>' +
+      '<div class="print-subtitle">' + sorted.length + ' word' + (sorted.length===1?'':'s') +
+      ' &middot; exported ' + formatDate(Date.now()) + '</div>' +
+      '<div class="print-columns">';
+
+    var currentLetter = null;
+    sorted.forEach(function(w){
+      if(order === 'alpha'){
+        var letter = w.word.charAt(0).toUpperCase();
+        if(letter !== currentLetter){ currentLetter = letter; html += '<div class="print-group">' + letter + '</div>'; }
+      }
+      var book = bookById(w.bookId);
+      var bookTag = (scope === 'all' && book) ? ' <span class="pt">&mdash; ' + escapeHtml(book.name) + '</span>' : '';
+      html += '<div class="print-entry">' +
+        '<span class="pw">' + escapeHtml(w.word) + '</span>' +
+        (w.phonetics ? '<span class="pp">' + escapeHtml(w.phonetics) + '</span>' : '') +
+        '<span class="pt"> ' + (TYPE_ABBR[w.type] || w.type) + '</span>' + bookTag +
+        '<span class="pd">' + escapeHtml(w.definition) + '</span>' +
+        (w.examples && w.examples.length ? w.examples.map(function(ex){ return '<span class="pe">' + escapeHtml(ex) + '</span>'; }).join('') : '') +
+        '</div>';
+    });
+    html += '</div>';
+    return html;
+  }
+
+  document.getElementById('openExportBtn').addEventListener('click', function(){
+    var sel = document.getElementById('exScope');
+    sel.innerHTML = '<option value="all">All words</option>';
+    var ordered = [state.books.find(function(b){ return b.id===RANDOM_ID; })].concat(
+      state.books.filter(function(b){ return b.id !== RANDOM_ID; })
+    );
+    ordered.forEach(function(b){
+      var opt = document.createElement('option');
+      opt.value = b.id; opt.textContent = b.name;
+      sel.appendChild(opt);
+    });
+    document.getElementById('exportOverlay').classList.add('open');
+  });
+  document.getElementById('exportCancelBtn').addEventListener('click', function(){
+    document.getElementById('exportOverlay').classList.remove('open');
+  });
+  document.getElementById('exportOverlay').addEventListener('click', function(e){
+    if(e.target.id === 'exportOverlay') document.getElementById('exportOverlay').classList.remove('open');
+  });
+  document.getElementById('exportGoBtn').addEventListener('click', function(){
+    var scope = document.getElementById('exScope').value;
+    var order = document.getElementById('exOrder').value;
+    var words = scope === 'all' ? state.words.slice() : state.words.filter(function(w){ return w.bookId === scope; });
+    if(words.length === 0){ showFlash('Nothing to export in that selection.'); return; }
+    document.getElementById('printArea').innerHTML = buildPrintHtml(words, scope, order);
+    document.getElementById('exportOverlay').classList.remove('open');
+    setTimeout(function(){ window.print(); }, 150);
+  });
+
+  // ---------- Backup & restore ----------
+  document.getElementById('downloadBackupBtn').addEventListener('click', function(){
+    var blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    var stamp = new Date().toISOString().slice(0,10);
+    a.href = url; a.download = 'lexicon-backup-' + stamp + '.json';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showFlash('Backup downloaded.');
+  });
+  document.getElementById('restoreBackupBtn').addEventListener('click', function(){
+    document.getElementById('restoreFileInput').click();
+  });
+  document.getElementById('restoreFileInput').addEventListener('change', function(e){
+    var file = e.target.files[0];
+    if(!file) return;
+    var reader = new FileReader();
+    reader.onload = function(ev){
+      try{
+        var data = JSON.parse(ev.target.result);
+        if(!data || !Array.isArray(data.books) || !Array.isArray(data.words)) throw new Error('bad format');
+        var addedBooks = 0, addedWords = 0;
+        var existingBookIds = {}; state.books.forEach(function(b){ existingBookIds[b.id] = true; });
+        data.books.forEach(function(b){
+          if(!existingBookIds[b.id]){ state.books.push(b); existingBookIds[b.id] = true; addedBooks++; }
+        });
+        var existingWordIds = {}; state.words.forEach(function(w){ existingWordIds[w.id] = true; });
+        data.words.forEach(function(w){
+          if(!existingWordIds[w.id]){ state.words.push(w); existingWordIds[w.id] = true; addedWords++; }
+        });
+        saveState();
+        renderSidebar();
+        renderMain();
+        showFlash('Restored ' + addedWords + ' word(s) and ' + addedBooks + ' book(s).');
+      }catch(err){
+        showFlash('That file could not be read as a lexicon backup.');
+      }
+      e.target.value = '';
+    };
+    reader.readAsText(file);
+  });
+
+  // ---------- Import words (CSV) ----------
+  function parseCSV(text){
+    var rows = []; var row = []; var field = ''; var inQuotes = false; var i = 0;
+    while(i < text.length){
+      var c = text[i];
+      if(inQuotes){
+        if(c === '"'){
+          if(text[i+1] === '"'){ field += '"'; i += 2; continue; }
+          inQuotes = false; i++; continue;
+        }
+        field += c; i++; continue;
+      } else {
+        if(c === '"'){ inQuotes = true; i++; continue; }
+        if(c === ','){ row.push(field); field=''; i++; continue; }
+        if(c === '\r'){ i++; continue; }
+        if(c === '\n'){ row.push(field); rows.push(row); row=[]; field=''; i++; continue; }
+        field += c; i++; continue;
+      }
+    }
+    row.push(field); rows.push(row);
+    while(rows.length && rows[rows.length-1].length === 1 && rows[rows.length-1][0].trim() === '') rows.pop();
+    return rows;
+  }
+
+  function importFromCSV(text){
+    var rows = parseCSV(text);
+    if(rows.length === 0) return { added:0, skippedDup:0, skippedBad:0, booksCreated:0 };
+    var header = rows[0].map(function(h){ return h.trim().toLowerCase(); });
+    var idx = {
+      word: header.indexOf('word'), type: header.indexOf('type'), phonetics: header.indexOf('phonetics'),
+      definition: header.indexOf('definition'), examples: header.indexOf('examples'),
+      book: header.indexOf('book'), author: header.indexOf('author'), year: header.indexOf('year')
+    };
+    if(idx.word === -1 || idx.definition === -1) return { error: true };
+
+    var added=0, skippedDup=0, skippedBad=0, booksCreated=0;
+    var validTypes = Object.keys(TYPE_ABBR);
+
+    for(var r=1; r<rows.length; r++){
+      var row = rows[r];
+      if(!row || row.every(function(c){ return c.trim() === ''; })) continue;
+      var word = (row[idx.word] || '').trim();
+      var definition = (row[idx.definition] || '').trim();
+      if(!word || !definition){ skippedBad++; continue; }
+
+      var isDup = state.words.some(function(w){ return w.word.trim().toLowerCase() === word.toLowerCase(); });
+      if(isDup){ skippedDup++; continue; }
+
+      var type = idx.type > -1 ? (row[idx.type] || '').trim().toLowerCase() : 'other';
+      if(validTypes.indexOf(type) === -1) type = 'other';
+      var phonetics = idx.phonetics > -1 ? (row[idx.phonetics] || '').trim() : '';
+      var examplesRaw = idx.examples > -1 ? (row[idx.examples] || '').trim() : '';
+      var examples = examplesRaw ? examplesRaw.split('|').map(function(s){ return s.trim(); }).filter(Boolean) : [];
+      var bookName = idx.book > -1 ? (row[idx.book] || '').trim() : '';
+      var author = idx.author > -1 ? (row[idx.author] || '').trim() : '';
+      var year = idx.year > -1 ? (row[idx.year] || '').trim() : '';
+
+      var bookId = RANDOM_ID;
+      if(bookName){
+        var existingBook = state.books.find(function(b){ return b.name.toLowerCase() === bookName.toLowerCase(); });
+        if(existingBook){
+          bookId = existingBook.id;
+          if(author && !existingBook.author) existingBook.author = author;
+          if(year && !existingBook.year) existingBook.year = year;
+        } else {
+          var newBook = { id: uid(), name: bookName, author: author, year: year, createdAt: Date.now() };
+          state.books.push(newBook);
+          bookId = newBook.id;
+          booksCreated++;
+        }
+      }
+
+      state.words.push({
+        id: uid(), word: word, type: type, phonetics: phonetics, definition: definition,
+        examples: examples, bookId: bookId, createdAt: Date.now()
+      });
+      added++;
+    }
+    return { added:added, skippedDup:skippedDup, skippedBad:skippedBad, booksCreated:booksCreated };
+  }
+
+  document.getElementById('openImportBtn').addEventListener('click', function(){
+    document.getElementById('importOverlay').classList.add('open');
+  });
+  document.getElementById('importCancelBtn').addEventListener('click', function(){
+    document.getElementById('importOverlay').classList.remove('open');
+  });
+  document.getElementById('importOverlay').addEventListener('click', function(e){
+    if(e.target.id === 'importOverlay') document.getElementById('importOverlay').classList.remove('open');
+  });
+  document.getElementById('downloadTemplateBtn').addEventListener('click', function(){
+    var csv = 'word,type,phonetics,definition,examples,book,author,year\n' +
+      'abscond,verb,/əbˈskɒnd/,"to leave quickly and secretly, often to avoid trouble","He absconded with the money.|She absconded before dawn.",Harry Potter,J.K. Rowling,1997\n';
+    var blob = new Blob([csv], { type: 'text/csv' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url; a.download = 'lexicon-import-template.csv';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  });
+  document.getElementById('chooseImportFileBtn').addEventListener('click', function(){
+    document.getElementById('importFileInput').click();
+  });
+  document.getElementById('importFileInput').addEventListener('change', function(e){
+    var file = e.target.files[0];
+    if(!file) return;
+    var reader = new FileReader();
+    reader.onload = function(ev){
+      var result = importFromCSV(ev.target.result);
+      if(result.error){
+        showFlash('That CSV needs at least a "word" and a "definition" column.');
+      } else {
+        saveState();
+        renderSidebar();
+        renderMain();
+        var parts = [ result.added + ' word' + (result.added===1?'':'s') + ' imported' ];
+        if(result.skippedDup) parts.push(result.skippedDup + ' duplicate' + (result.skippedDup===1?'':'s') + ' skipped');
+        if(result.skippedBad) parts.push(result.skippedBad + ' row' + (result.skippedBad===1?'':'s') + ' skipped');
+        if(result.booksCreated) parts.push(result.booksCreated + ' new book' + (result.booksCreated===1?'':'s'));
+        showFlash(parts.join(' · '));
+        document.getElementById('importOverlay').classList.remove('open');
+      }
+      e.target.value = '';
+    };
+    reader.readAsText(file);
+  });
+
+  // ---------- Cloud sync (Firebase) ----------
+  function getStoredFirebaseConfig(){
+    try{
+      var raw = localStorage.getItem('firebase-config');
+      return raw ? JSON.parse(raw) : null;
+    }catch(e){ return null; }
+  }
+
+  function initFirebaseIfConfigured(){
+    var cfg = getStoredFirebaseConfig();
+    if(!cfg) return;
+    try{
+      if(!fbApp){
+        fbApp = firebase.apps.length ? firebase.apps[0] : firebase.initializeApp(cfg);
+        fbAuth = firebase.auth();
+        fbDb = firebase.firestore();
+        fbAuth.onAuthStateChanged(function(user){
+          cloudUser = user;
+          if(user){
+            subscribeCloud(user.uid);
+            document.getElementById('cloudStatus').textContent = '☁ Synced as ' + user.email;
+          } else {
+            if(unsubscribeSnapshot){ unsubscribeSnapshot(); unsubscribeSnapshot = null; }
+            document.getElementById('cloudStatus').textContent = '☁ Not signed in';
+          }
+          renderCloudModal();
+        });
+      }
+    }catch(e){
+      console.error('Firebase init failed', e);
+      document.getElementById('cloudStatus').textContent = '☁ Setup error';
+    }
+  }
+
+  function subscribeCloud(uid){
+    if(unsubscribeSnapshot) unsubscribeSnapshot();
+    unsubscribeSnapshot = fbDb.collection('lexicon').doc(uid).onSnapshot(function(doc){
+      if(!doc.exists) return;
+      var remote = doc.data();
+      if(!remote || !remote.json) return;
+      try{
+        var parsed = JSON.parse(remote.json);
+        if(parsed && parsed.books && parsed.words){
+          applyingRemote = true;
+          state = parsed;
+          localStorage.setItem('lexicon-data', JSON.stringify(state));
+          renderSidebar();
+          renderMain();
+          applyingRemote = false;
+        }
+      }catch(e){ /* ignore malformed remote payload */ }
+    }, function(err){ console.error('Cloud listen failed', err); });
+  }
+
+  function pushToCloud(){
+    if(!cloudUser || !fbDb) return;
+    fbDb.collection('lexicon').doc(cloudUser.uid).set({
+      json: JSON.stringify(state), updatedAt: Date.now()
+    }).catch(function(e){ console.error('Cloud push failed', e); showFlash('Could not sync to the cloud right now.'); });
+  }
+
+  function parseFirebaseConfigText(text){
+    try{
+      var start = text.indexOf('{'); var end = text.lastIndexOf('}');
+      if(start === -1 || end === -1) return null;
+      var snippet = text.slice(start, end + 1);
+      var obj = new Function('return ' + snippet)();
+      if(obj && obj.apiKey && obj.projectId) return obj;
+      return null;
+    }catch(e){ return null; }
+  }
+
+  function renderCloudModal(){
+    var body = document.getElementById('cloudModalBody');
+    var cfg = getStoredFirebaseConfig();
+    if(!cfg){
+      body.innerHTML =
+        '<p class="hint">Paste the firebaseConfig object from your Firebase project (Project settings → your web app) below.</p>' +
+        '<div class="field"><textarea id="fbConfigInput" placeholder="const firebaseConfig = { apiKey: ...'+'"></textarea></div>' +
+        '<div class="cloud-row-actions"><button class="btn-primary" id="fbSaveConfigBtn">Save & continue</button></div>';
+      document.getElementById('fbSaveConfigBtn').addEventListener('click', function(){
+        var parsed = parseFirebaseConfigText(document.getElementById('fbConfigInput').value);
+        if(!parsed){ showFlash('That doesn\'t look like a valid Firebase config.'); return; }
+        localStorage.setItem('firebase-config', JSON.stringify(parsed));
+        initFirebaseIfConfigured();
+        renderCloudModal();
+      });
+      return;
+    }
+    if(!cloudUser){
+      body.innerHTML =
+        '<p class="hint">Sign in with the same email on every device to keep them in sync. First time here? Create an account below.</p>' +
+        '<div class="field"><label for="fbEmail">Email</label><input id="fbEmail" type="email" autocomplete="email"></div>' +
+        '<div class="field"><label for="fbPass">Password</label><input id="fbPass" type="password" autocomplete="current-password"></div>' +
+        '<div class="cloud-row-actions">' +
+          '<button class="btn-secondary" id="fbCreateBtn">Create account</button>' +
+          '<button class="btn-primary" id="fbSignInBtn">Sign in</button>' +
+        '</div>' +
+        '<p class="hint" style="margin-top:14px;"><a href="#" id="fbForgetConfigLink" style="color: var(--burgundy);">Use a different Firebase project</a></p>';
+      document.getElementById('fbSignInBtn').addEventListener('click', function(){
+        fbAuth.signInWithEmailAndPassword(document.getElementById('fbEmail').value.trim(), document.getElementById('fbPass').value)
+          .catch(function(e){ showFlash(e.message); });
+      });
+      document.getElementById('fbCreateBtn').addEventListener('click', function(){
+        fbAuth.createUserWithEmailAndPassword(document.getElementById('fbEmail').value.trim(), document.getElementById('fbPass').value)
+          .then(function(){ showFlash('Account created — this device is now connected.'); })
+          .catch(function(e){ showFlash(e.message); });
+      });
+      document.getElementById('fbForgetConfigLink').addEventListener('click', function(e){
+        e.preventDefault();
+        localStorage.removeItem('firebase-config');
+        location.reload();
+      });
+      return;
+    }
+    body.innerHTML =
+      '<p class="hint">Signed in as <strong>' + escapeHtml(cloudUser.email) + '</strong>. Changes on this device sync automatically to any other device signed into the same account.</p>' +
+      '<div class="cloud-row-actions"><button class="btn-secondary" id="fbSignOutBtn">Sign out of cloud sync</button></div>';
+    document.getElementById('fbSignOutBtn').addEventListener('click', function(){ fbAuth.signOut(); });
+  }
+
+  document.getElementById('openCloudBtn').addEventListener('click', function(){
+    initFirebaseIfConfigured();
+    renderCloudModal();
+    document.getElementById('cloudOverlay').classList.add('open');
+  });
+  document.getElementById('cloudCloseBtn').addEventListener('click', function(){
+    document.getElementById('cloudOverlay').classList.remove('open');
+  });
+  document.getElementById('cloudOverlay').addEventListener('click', function(e){
+    if(e.target.id === 'cloudOverlay') document.getElementById('cloudOverlay').classList.remove('open');
+  });
+
+  initFirebaseIfConfigured();
+  (function(){
+    var overlayIds = ['overlay','exportOverlay','bookOverlay','importOverlay','cloudOverlay'];
+    function syncBodyScrollLock(){
+      var anyOpen = overlayIds.some(function(id){
+        var el = document.getElementById(id);
+        return el && el.classList.contains('open');
+      });
+      document.body.classList.toggle('modal-open', anyOpen);
+    }
+    overlayIds.forEach(function(id){
+      var el = document.getElementById(id);
+      if(el) new MutationObserver(syncBodyScrollLock).observe(el, { attributes:true, attributeFilter:['class'] });
+    });
+  })();
+
+  loadState();
+})();
+</script>
+</body>
+</html>
